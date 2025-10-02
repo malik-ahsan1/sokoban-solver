@@ -23,6 +23,7 @@ class PlayerPathfinder
 private:
   const Board *board;
   const Array<Door> *doors;
+  Array<int> blockedPositions;  // Positions that should be treated as impassable (e.g., box positions)
 
   // 2D distance array: dist[pos][step_mod_L]
   Array<Array<int>> dist_table;
@@ -44,6 +45,9 @@ public:
 
   // Initialize pathfinder with board and doors
   void initialize(const Board &b, const Array<Door> &d);
+
+  // Set blocked positions (e.g., box positions that player cannot walk through)
+  void setBlockedPositions(const Array<int> &blocked);
 
   // Run BFS from starting position and time
   void findPaths(int start_pos, int start_step_mod_L);
