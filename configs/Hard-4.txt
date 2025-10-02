@@ -1,0 +1,23 @@
+[META]
+NAME = Hard Level 4
+WIDTH = 8
+HEIGHT = 9
+ENERGY_LIMIT = 300
+MOVE_COST = 1
+PUSH_COST = 2
+
+[DOORS]
+1 OPEN=2 CLOSE=1 PHASE=2 INITIAL=0
+2 OPEN=1 CLOSE=3 PHASE=1 INITIAL=1
+
+
+[BOARD]
+  ##### 
+###dea# 
+#.@$ 1# 
+### A.# 
+#.##B # 
+#2# . ##
+#Cb DE.#
+# c .  #
+########

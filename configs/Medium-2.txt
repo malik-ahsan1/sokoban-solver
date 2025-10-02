@@ -1,0 +1,20 @@
+[META]
+NAME = Medium Level 2
+WIDTH = 14
+HEIGHT = 9
+ENERGY_LIMIT = 3202
+MOVE_COST = 1
+PUSH_COST = 2
+
+[DOORS]
+
+[BOARD]
+##############
+#   @        #
+#C#### ##### #
+# #       c#B#
+#     ###### #
+# # A  .  b# #
+#.##########.#
+#a           #
+##############

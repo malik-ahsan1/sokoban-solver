@@ -1,0 +1,18 @@
+[META]
+NAME = Easy Level 3
+WIDTH = 10
+HEIGHT = 7
+ENERGY_LIMIT = 200
+MOVE_COST = 1
+PUSH_COST = 1
+
+[DOORS]
+
+[BOARD]
+##########
+#   ..   #
+#   $$   #
+#   @    #
+#  $     #
+#       .#
+##########

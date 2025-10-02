@@ -1,0 +1,19 @@
+[META]
+NAME = Hard Level 1
+WIDTH = 12
+HEIGHT = 7
+ENERGY_LIMIT = 2800
+MOVE_COST = 1
+PUSH_COST = 3
+
+[DOORS]
+1 OPEN=3 CLOSE=1 PHASE=1 INITIAL=0
+
+[BOARD]
+############
+#c  .A  B. #
+#          #
+######1#####
+#  a  @    #
+#   C    .b#
+############

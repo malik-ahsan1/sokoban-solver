@@ -1,0 +1,20 @@
+[META]
+NAME = Medium Level 3
+WIDTH = 15
+HEIGHT = 9
+ENERGY_LIMIT = 500
+MOVE_COST = 1
+PUSH_COST = 2
+
+[DOORS]
+
+[BOARD]
+###############
+#  a b c d e  #
+#  # # # # #  #
+#@ . . . . .  #
+###E#D#C#B#A# #
+# # # # # # # #
+#             #
+#             #
+###############
