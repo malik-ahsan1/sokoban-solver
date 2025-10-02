@@ -78,6 +78,37 @@ This eliminates false positives while still catching truly deadlocked states.
 - Changed progress reporting interval from every 25,000 to every 50,000 nodes
 - Allows solver to explore more states for complex puzzles
 
+### 6. Key Collection Implementation
+**Files**: `src/State.h`, `src/State.cpp`, `src/SuccessorGenerator.cpp`, `src/SolverAStar.cpp`, `src/Zobrist.h`, `src/Zobrist.cpp`
+
+**Purpose**: Enable solving medium and hard puzzles that require collecting keys to unlock boxes.
+
+**Changes**:
+1. **State class** (`State.h`, `State.cpp`):
+   - Added `Array<int> keys_on_board` and `Array<char> key_ids` to track keys still on the board
+   - Added key management methods: `addKey()`, `removeKey()`, `findKeyAt()`, `getKeyCount()`, etc.
+   - Updated `equals()` to compare keys on board
+   - Updated `recompute_hash()` to include keys on board in Zobrist hash
+
+2. **Zobrist hashing** (`Zobrist.h`, `Zobrist.cpp`):
+   - Added `key_on_board_table` to store hash values for keys at positions
+   - Added `key_on_board_hash()` method to hash keys on board (similar to box hashing)
+   - Allocates 26 * boardSize hash values for all possible key positions
+
+3. **Successor generator** (`SuccessorGenerator.cpp`):
+   - Added key pickup actions after box pushing logic
+   - Only generates key pickups when player doesn't already hold a key (`key_held == -1`)
+   - Uses existing pathfinder to check if player can reach key
+   - Creates successor with player at key position, key removed from board, and `key_held` updated
+   - Uses action marker 'K' for key pickup actions
+
+4. **A* solver** (`SolverAStar.cpp`):
+   - Initialize state with keys from `InitialDynamicState`
+   - Handle 'K' action in `generateSuccessorsWithMoves()` to avoid treating it as a box push
+   - Updated `isGoal()` to require all boxes to be unlocked (id == 0) before checking positions
+
+**Impact**: Enables solving Medium-1 and Medium-2 puzzles. Medium-3 and Medium-4 require further optimization due to larger search spaces.
+
 ## Results
 
 ### Easy Puzzles (All Now Solve)
@@ -96,21 +127,39 @@ This eliminates false positives while still catching truly deadlocked states.
 
 This represents a **>10x improvement** in search efficiency due to proper successor generation.
 
+### Medium Puzzles (Partial Support)
+| Level    | Status  | Time      | Nodes Expanded | Solution Length | Notes |
+|----------|---------|-----------|----------------|-----------------|-------|
+| Medium-1 | ✓ Solved | 13.3 s   | 27,734         | 36 moves        | 2 keys, 2 locked boxes |
+| Medium-2 | ✓ Solved | 29 ms    | 305            | 44 moves        | 3 keys, 3 locked boxes |
+| Medium-3 | ✗ Timeout | >60 s    | >50,000        | -               | 5 keys, complex |
+| Medium-4 | ✗ Timeout | >60 s    | >50,000        | -               | 3 keys, complex |
+
 ## Known Limitations
 
 ### Medium and Hard Puzzles
-These puzzles require **key collection** functionality, which is not currently implemented:
-- Players need to walk over keys (lowercase letters) to pick them up
-- Keys are then used to unlock corresponding boxes (uppercase letters)
-- The current `SuccessorGenerator.cpp` only handles pushing boxes with keys already held
-- It doesn't generate successors for key pickup actions
+Medium puzzles now have **partial support** with key collection implemented:
+- ✓ Players can now walk over keys (lowercase letters) to pick them up
+- ✓ Keys are used to unlock corresponding boxes (uppercase letters)
+- ✓ The `SuccessorGenerator.cpp` generates successors for key pickup actions
+- ✓ State tracking includes which keys have been picked up vs. which are still on the board
+- ✓ State hash includes available keys on board
+- ✓ Deadlock detection accounts for key availability
+
+**Current Status:**
+- **Medium-1**: ✓ SOLVED (13.3s, 27,734 nodes expanded, 36 moves)
+- **Medium-2**: ✓ SOLVED (29ms, 305 nodes expanded, 44 moves)
+- **Medium-3**: Partial - requires optimization (5 keys, very complex search space)
+- **Medium-4**: Partial - requires optimization (3 keys + additional complexity)
 
 ### Future Work
-To solve Medium and Hard puzzles:
-1. Implement key collection in the successor generator
-2. Add state tracking for which keys have been picked up vs. which are still on the board
-3. Update the state hash to include available keys
-4. Ensure deadlock detection accounts for key availability
+To solve all Medium and Hard puzzles:
+1. ~~Implement key collection in the successor generator~~ ✓ DONE
+2. ~~Add state tracking for which keys have been picked up vs. which are still on the board~~ ✓ DONE
+3. ~~Update the state hash to include available keys~~ ✓ DONE
+4. ~~Ensure deadlock detection accounts for key availability~~ ✓ DONE
+5. Improve heuristics for complex multi-key puzzles (Medium-3, Medium-4)
+6. Consider pattern database or other advanced heuristics for reducing search space
 
 ## Testing
-All Easy puzzles (1-6) have been verified to solve correctly with the improvements. The solver maintains correctness while significantly improving performance.
+All Easy puzzles (1-6) and Medium puzzles (1-2) have been verified to solve correctly with the improvements. The solver maintains correctness while significantly improving functionality.

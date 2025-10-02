@@ -6,6 +6,7 @@
 Zobrist::Zobrist()
     : player_pos_table(nullptr), box_unlabeled_table(nullptr),
       box_letter_table(nullptr), key_held_table(nullptr),
+      key_on_board_table(nullptr),
       step_mod_table(nullptr), board_size(0), max_box_id_count(0),
       max_key_count(0), time_modulo_L(0), initialized(false)
 {
@@ -64,6 +65,7 @@ void Zobrist::init(int boardSize, int maxBoxIdCount, int maxKeyCount, int timeMo
     box_unlabeled_table = new uint64_t[boardSize];
     box_letter_table = new uint64_t[26 * boardSize]; // 26 letters * boardSize positions
     key_held_table = new uint64_t[maxKeyCount];
+    key_on_board_table = new uint64_t[26 * boardSize]; // 26 letters * boardSize positions
     step_mod_table = new uint64_t[timeModuloL];
 
     // Fill tables with random values
@@ -76,6 +78,7 @@ void Zobrist::init(int boardSize, int maxBoxIdCount, int maxKeyCount, int timeMo
       for (int letter = 0; letter < 26; letter++)
       {
         box_letter_table[letter * boardSize + i] = rng();
+        key_on_board_table[letter * boardSize + i] = rng();
       }
     }
 
@@ -110,12 +113,14 @@ void Zobrist::cleanup()
   delete[] box_unlabeled_table;
   delete[] box_letter_table;
   delete[] key_held_table;
+  delete[] key_on_board_table;
   delete[] step_mod_table;
 
   player_pos_table = nullptr;
   box_unlabeled_table = nullptr;
   box_letter_table = nullptr;
   key_held_table = nullptr;
+  key_on_board_table = nullptr;
   step_mod_table = nullptr;
 
   initialized = false;
@@ -157,6 +162,16 @@ uint64_t Zobrist::key_hash(int keyIndex) const
     return 0;
   }
   return key_held_table[keyIndex];
+}
+
+uint64_t Zobrist::key_on_board_hash(char id, int pos) const
+{
+  if (!initialized || pos < 0 || pos >= board_size || id < 'a' || id > 'z')
+  {
+    return 0;
+  }
+  int letterIndex = id - 'a'; // Convert 'a'-'z' to 0-25
+  return key_on_board_table[letterIndex * board_size + pos];
 }
 
 uint64_t Zobrist::time_hash(int tmod) const

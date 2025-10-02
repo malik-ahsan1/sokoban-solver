@@ -35,6 +35,8 @@ private:
   int player_pos;          // Player position on board
   Array<BoxInfo> boxes;    // Array of box positions and IDs
   int key_held;            // -1 for none, or key index/ASCII value
+  Array<int> keys_on_board;   // Positions of keys still on the board
+  Array<char> key_ids;        // IDs of keys on board (a-z)
   int energy_used;         // Energy consumed so far
   int step_mod_L;          // Current step modulo L (0 to L-1)
   State *parent;           // Parent state (for path reconstruction)
@@ -87,6 +89,14 @@ public:
 
   // Find box at position
   int findBoxAt(int pos) const;
+
+  // Key management
+  void addKey(int pos, char id);
+  void removeKey(int index);
+  int getKeyCount() const { return keys_on_board.getSize(); }
+  int getKeyPos(int index) const { return keys_on_board[index]; }
+  char getKeyId(int index) const { return key_ids[index]; }
+  int findKeyAt(int pos) const;
 
   // Step generation for successor states
   void updateStepModL(int timeModuloL) { step_mod_L = (step_mod_L + 1) % timeModuloL; }

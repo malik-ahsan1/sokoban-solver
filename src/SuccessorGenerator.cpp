@@ -172,5 +172,60 @@ Array<State> generateSuccessors(const State &s, const Board &board, const Array<
     }
   }
 
+  // Generate key pickup actions
+  // Only generate if player doesn't already hold a key
+  if (s.getKeyHeld() == -1)
+  {
+    for (int key_idx = 0; key_idx < s.getKeyCount(); key_idx++)
+    {
+      int key_pos = s.getKeyPos(key_idx);
+      
+      // Check if player can reach the key position
+      int move_distance = pathfinder.getDistance(key_pos);
+      if (move_distance == -1)
+      {
+        continue; // Player cannot reach the key
+      }
+
+      // Calculate energy cost
+      int new_energy = s.getEnergyUsed() + move_distance * meta.moveCost;
+      if (new_energy > meta.energyLimit)
+      {
+        continue; // Exceeds energy limit
+      }
+
+      // Create successor state
+      State new_state = s; // Copy constructor
+
+      // Update player position to key position
+      new_state.setPlayerPos(key_pos);
+
+      // Pick up the key
+      char key_id = s.getKeyId(key_idx);
+      int key_index = key_id - 'a'; // Convert 'a'-'z' to 0-25
+      new_state.setKeyHeld(key_index);
+
+      // Remove key from board
+      new_state.removeKey(key_idx);
+
+      // Update timing
+      int new_step_mod_L = (s.getStepModL() + move_distance) % L;
+      new_state.setStepModL(new_step_mod_L);
+
+      // Update energy
+      new_state.setEnergyUsed(new_energy);
+
+      // Set parent and action (use 'K' for key pickup action)
+      new_state.setParent(const_cast<State *>(&s));
+      new_state.setActionFromParent('K');
+
+      // Canonicalize the state (sort unlabeled boxes)
+      new_state.canonicalize();
+
+      // Add to successors
+      successors.push_back(new_state);
+    }
+  }
+
   return successors;
 }
