@@ -339,8 +339,17 @@ void SolverAStar::generateSuccessorsWithMoves(const AStarNode *parentNode, Array
     // Handle key pickup action separately
     if (pushDirection == 'K')
     {
-      // Key pickup action - player just moves to key position
-      // No box push involved
+      // Key pickup action - player moves to key position
+      // Get the path from current player position to the key position
+      int keyPos = successors[i].getPlayerPos();
+      Array<char> pathMoves = pathfinder.getPath(keyPos);
+      
+      // Add all path moves to actionsFromParent
+      for (int j = 0; j < pathMoves.getSize(); j++)
+      {
+        successorNode->actionsFromParent.push_back(pathMoves[j]);
+      }
+      
       successorNode->g = computeMoveCost(currentState, successors[i]);
       successorNode->h = heuristics.heuristic(successors[i]);
       successorNodes.push_back(successorNode);
