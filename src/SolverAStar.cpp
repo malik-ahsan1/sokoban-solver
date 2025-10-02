@@ -156,16 +156,16 @@ bool SolverAStar::solve(const InitialDynamicState &init, Array<char> &outMoves, 
     Array<AStarNode *> successorNodes;
     generateSuccessorsWithMoves(currentNodePtr, successorNodes);
 
-    // Only show progress every 25000 nodes
-    if (currentStats.nodesExpanded % 25000 == 0)
+    // Only show progress every 50000 nodes
+    if (currentStats.nodesExpanded % 50000 == 0)
     {
       std::cout << "Expanded: " << currentStats.nodesExpanded << ", Generated: " << currentStats.nodesGenerated << std::endl;
     }
 
-    // Stop if we've expanded too many nodes
-    if (currentStats.nodesExpanded > 500000)
+    // Stop if we've expanded too many nodes (increased limit for complex puzzles)
+    if (currentStats.nodesExpanded > 1000000)
     {
-      std::cout << "Search limit reached" << std::endl;
+      std::cout << "Search limit reached (1,000,000 nodes)" << std::endl;
       break;
     }
 
@@ -175,18 +175,13 @@ bool SolverAStar::solve(const InitialDynamicState &init, Array<char> &outMoves, 
       AStarNode *successorNode = successorNodes[i];
       // Processing successor (debug output reduced for performance)
 
-      // Deadlock detection disabled for performance
-      // bool corner_deadlock = heuristics.isCornerDeadlocked(successorNode->state);
-      // bool wall_deadlock = heuristics.isWallDeadlocked(successorNode->state);
-      // bool multibox_deadlock = heuristics.isMultiboxDeadlocked(successorNode->state);
-
-      // TEMPORARILY DISABLE deadlock detection to test
-      // if (heuristics.isDeadlocked(successorNode->state))
-      // {
-      //   std::cout << "DEBUG: Successor " << (i+1) << " overall deadlocked - skipped" << std::endl;
-      //   delete successorNode;
-      //   continue;
-      // }
+      // Enable deadlock detection to prune dead-end states
+      if (heuristics.isDeadlocked(successorNode->state))
+      {
+        // Deadlocked state - skip it
+        delete successorNode;
+        continue;
+      }
 
       // Check energy limit
       if (successorNode->state.getEnergyUsed() > meta.energyLimit)
@@ -288,127 +283,24 @@ void SolverAStar::updateStats()
 void SolverAStar::generateSuccessorsWithMoves(const AStarNode *parentNode, Array<AStarNode *> &successorNodes)
 {
   const State &currentState = parentNode->state;
-  int L = board.getTimeModuloL();
-  int rows = board.get_height();
-  int cols = board.get_width();
 
-  // Reduced debug output for performance  // Generate only atomic single moves (U, D, L, R)
-  int player_pos = currentState.getPlayerPos();
-  int player_row = player_pos / cols;
-  int player_col = player_pos % cols;
+  // Use the proper successor generator that only generates box pushes
+  Array<State> successors = generateSuccessors(currentState, board, doors, meta);
 
-  int dr[] = {-1, 1, 0, 0};
-  int dc[] = {0, 0, -1, 1};
-  char moves[] = {'U', 'D', 'L', 'R'};
-
-  // Try each direction from current player position
-  for (int dir = 0; dir < 4; dir++)
+  // Convert State objects to AStarNode pointers
+  for (int i = 0; i < successors.getSize(); i++)
   {
-    int new_row = player_row + dr[dir];
-    int new_col = player_col + dc[dir];
-
-    // Check bounds
-    if (new_row < 0 || new_row >= rows || new_col < 0 || new_col >= cols)
+    AStarNode *successorNode = new AStarNode();
+    successorNode->state = successors[i];
+    successorNode->parent = reinterpret_cast<State *>(const_cast<AStarNode *>(parentNode));
+    
+    // Get the action that led to this state (stored in the state's action_from_parent)
+    char action = successors[i].getActionFromParent();
+    if (action != 0)
     {
-      continue;
+      successorNode->actionsFromParent.push_back(action);
     }
-
-    int new_pos = new_row * cols + new_col;
-
-    // Check if position is passable (no wall)
-    if (board.is_wall_idx(new_pos))
-    {
-      continue;
-    }
-
-    // Check if there's a box at this position
-    int box_at_pos = -1;
-    for (int b = 0; b < currentState.getBoxCount(); b++)
-    {
-      if (currentState.getBox(b).pos == new_pos)
-      {
-        box_at_pos = b;
-        break;
-      }
-    }
-
-    if (box_at_pos == -1)
-    {
-      // No box - simple player move
-      State newState = currentState;
-      newState.setPlayerPos(new_pos);
-
-      // Update energy and time
-      newState.setEnergyUsed(currentState.getEnergyUsed() + meta.moveCost);
-      newState.setStepModL((currentState.getStepModL() + 1) % L);
-
-      // Create successor node
-      AStarNode *successorNode = new AStarNode();
-      successorNode->state = newState;
-      successorNode->parent = reinterpret_cast<State *>(const_cast<AStarNode *>(parentNode));
-      successorNode->actionsFromParent.push_back(moves[dir]);
-
-      // Added simple move
-      successorNodes.push_back(successorNode);
-    }
-    else
-    {
-      // There's a box - try to push it
-      const BoxInfo &box = currentState.getBox(box_at_pos);
-
-      // Calculate where the box would go
-      int box_new_row = new_row + dr[dir];
-      int box_new_col = new_col + dc[dir];
-
-      // Check bounds for box destination
-      if (box_new_row < 0 || box_new_row >= rows || box_new_col < 0 || box_new_col >= cols)
-      {
-        continue;
-      }
-
-      int box_new_pos = box_new_row * cols + box_new_col;
-
-      // Check if box destination is passable (no wall, no other box)
-      if (board.is_wall_idx(box_new_pos))
-      {
-        continue;
-      }
-
-      // Check if another box is already at destination
-      bool blocked_by_box = false;
-      for (int b = 0; b < currentState.getBoxCount(); b++)
-      {
-        if (b != box_at_pos && currentState.getBox(b).pos == box_new_pos)
-        {
-          blocked_by_box = true;
-          break;
-        }
-      }
-      if (blocked_by_box)
-      {
-        continue;
-      }
-
-      // Valid box push - create new state
-      State newState = currentState;
-      newState.setPlayerPos(new_pos); // Player moves to where box was
-
-      // Move the box
-      newState.removeBox(box_at_pos);
-      newState.addBox(box_new_pos, box.id);
-
-      // Update energy and time (move cost + push cost)
-      newState.setEnergyUsed(currentState.getEnergyUsed() + meta.moveCost + meta.pushCost);
-      newState.setStepModL((currentState.getStepModL() + 1) % L);
-
-      // Create successor node
-      AStarNode *successorNode = new AStarNode();
-      successorNode->state = newState;
-      successorNode->parent = reinterpret_cast<State *>(const_cast<AStarNode *>(parentNode));
-      successorNode->actionsFromParent.push_back(moves[dir]);
-
-      // Added box push
-      successorNodes.push_back(successorNode);
-    }
+    
+    successorNodes.push_back(successorNode);
   }
 }
