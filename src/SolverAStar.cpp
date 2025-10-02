@@ -103,6 +103,13 @@ bool SolverAStar::solve(const InitialDynamicState &init, Array<char> &outMoves, 
     if (isGoal(current.state))
     {
       std::cout << "Goal found!" << std::endl;
+      std::cout << "Goal state: player at " << current.state.getPlayerPos() 
+                << ", boxes: ";
+      for (int i = 0; i < current.state.getBoxCount(); i++)
+      {
+        std::cout << current.state.getBox(i).pos << " ";
+      }
+      std::cout << std::endl;
 
       // Find the actual node pointer for this state (need to search allNodes)
       AStarNode *goalNodePtr = nullptr;
@@ -287,6 +294,26 @@ void SolverAStar::generateSuccessorsWithMoves(const AStarNode *parentNode, Array
   // Use the proper successor generator that only generates box pushes
   Array<State> successors = generateSuccessors(currentState, board, doors, meta);
 
+  // Create pathfinder to reconstruct the full move sequences
+  // The pathfinder needs to avoid box positions
+  Array<int> boxPositions;
+  for (int i = 0; i < currentState.getBoxCount(); i++)
+  {
+    boxPositions.push_back(currentState.getBox(i).pos);
+  }
+
+  PlayerPathfinder pathfinder;
+  pathfinder.initialize(board, doors);
+  pathfinder.setBlockedPositions(boxPositions);
+  pathfinder.findPaths(currentState.getPlayerPos(), currentState.getStepModL());
+
+  // Direction vectors for movement: up, down, left, right
+  static const int dr[] = {-1, 1, 0, 0};
+  static const int dc[] = {0, 0, -1, 1};
+  static const char moves[] = {'U', 'D', 'L', 'R'};
+
+  int cols = board.get_width();
+
   // Convert State objects to AStarNode pointers
   for (int i = 0; i < successors.getSize(); i++)
   {
@@ -294,12 +321,67 @@ void SolverAStar::generateSuccessorsWithMoves(const AStarNode *parentNode, Array
     successorNode->state = successors[i];
     successorNode->parent = reinterpret_cast<State *>(const_cast<AStarNode *>(parentNode));
     
-    // Get the action that led to this state (stored in the state's action_from_parent)
-    char action = successors[i].getActionFromParent();
-    if (action != 0)
+    // Get the full move sequence: player path + push direction
+    // The successor state has the player at the box's original position after pushing
+    // We need to find where the player was BEFORE the push to get the correct path
+    
+    // Get the push direction
+    char pushDirection = successors[i].getActionFromParent();
+    
+    // Find which direction index this corresponds to
+    int dirIndex = -1;
+    for (int d = 0; d < 4; d++)
     {
-      successorNode->actionsFromParent.push_back(action);
+      if (moves[d] == pushDirection)
+      {
+        dirIndex = d;
+        break;
+      }
     }
+    
+    if (dirIndex == -1)
+    {
+      // No push direction stored, skip this successor
+      delete successorNode;
+      continue;
+    }
+    
+    // Calculate where the player needed to be to make this push
+    // The new player position is where the box was
+    int boxOldPos = successors[i].getPlayerPos();
+    int boxOldRow = boxOldPos / cols;
+    int boxOldCol = boxOldPos % cols;
+    
+    // Player was on the opposite side of the push direction
+    int playerTargetRow = boxOldRow - dr[dirIndex];
+    int playerTargetCol = boxOldCol - dc[dirIndex];
+    int playerTarget = playerTargetRow * cols + playerTargetCol;
+    
+    // Get the path from current player position to the push position
+    Array<char> pathMoves = pathfinder.getPath(playerTarget);
+    
+    // DEBUG
+    if (false && successors[i].getBox(0).pos == 18) {  // If this leads to goal
+      std::cout << "DEBUG: Generating successor that leads to goal (box at 18)" << std::endl;
+      std::cout << "  Parent player pos: " << currentState.getPlayerPos() << std::endl;
+      std::cout << "  Push direction: " << pushDirection << std::endl;
+      std::cout << "  Box old pos: " << boxOldPos << std::endl;
+      std::cout << "  Player target pos: " << playerTarget << std::endl;
+      std::cout << "  Path: ";
+      for (int j = 0; j < pathMoves.getSize(); j++) {
+        std::cout << pathMoves[j];
+      }
+      std::cout << std::endl;
+    }
+    
+    // Add all path moves to actionsFromParent
+    for (int j = 0; j < pathMoves.getSize(); j++)
+    {
+      successorNode->actionsFromParent.push_back(pathMoves[j]);
+    }
+    
+    // Add the push direction
+    successorNode->actionsFromParent.push_back(pushDirection);
     
     successorNodes.push_back(successorNode);
   }

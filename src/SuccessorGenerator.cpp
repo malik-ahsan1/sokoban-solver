@@ -14,6 +14,14 @@ Array<State> generateSuccessors(const State &s, const Board &board, const Array<
   PlayerPathfinder pathfinder;
   pathfinder.initialize(board, doors);
 
+  // Block box positions so pathfinder knows player can't walk through them
+  Array<int> boxPositions;
+  for (int i = 0; i < s.getBoxCount(); i++)
+  {
+    boxPositions.push_back(s.getBox(i).pos);
+  }
+  pathfinder.setBlockedPositions(boxPositions);
+
   // Run BFS from current player position and time
   pathfinder.findPaths(s.getPlayerPos(), s.getStepModL());
 

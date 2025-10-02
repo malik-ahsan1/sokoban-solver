@@ -11,6 +11,25 @@ void PlayerPathfinder::initialize(const Board &b, const Array<Door> &d)
   board = &b;
   doors = &d;
   initializeTables();
+  // Clear any previously set blocked positions
+  while (blockedPositions.getSize() > 0)
+  {
+    blockedPositions.pop_back();
+  }
+}
+
+void PlayerPathfinder::setBlockedPositions(const Array<int> &blocked)
+{
+  // Clear existing blocked positions
+  while (blockedPositions.getSize() > 0)
+  {
+    blockedPositions.pop_back();
+  }
+  // Copy new blocked positions
+  for (int i = 0; i < blocked.getSize(); i++)
+  {
+    blockedPositions.push_back(blocked[i]);
+  }
 }
 
 void PlayerPathfinder::initializeTables()
@@ -81,6 +100,13 @@ bool PlayerPathfinder::isPassable(int pos, int step_mod_L) const
 
   if (board->is_wall_idx(pos))
     return false;
+
+  // Check if position is blocked (e.g., by a box)
+  for (int i = 0; i < blockedPositions.getSize(); i++)
+  {
+    if (blockedPositions[i] == pos)
+      return false;
+  }
 
   // Check if any door at this position is open
   return isDoorOpen(pos, step_mod_L);
