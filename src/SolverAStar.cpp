@@ -64,6 +64,14 @@ bool SolverAStar::solve(const InitialDynamicState &init, Array<char> &outMoves, 
     initialState.addBox(boxPos, boxId);
   }
 
+  // Add keys to initial state
+  for (int i = 0; i < init.keys.getSize(); i++)
+  {
+    int keyPos = init.keys[i];
+    char keyId = (i < init.keyIds.getSize()) ? init.keyIds[i] : 'a';
+    initialState.addKey(keyPos, keyId);
+  }
+
   // Canonicalize and compute hash
   initialState.canonicalize();
   initialState.recompute_hash(zobrist);
@@ -180,7 +188,6 @@ bool SolverAStar::solve(const InitialDynamicState &init, Array<char> &outMoves, 
     for (int i = 0; i < successorNodes.getSize(); i++)
     {
       AStarNode *successorNode = successorNodes[i];
-      // Processing successor (debug output reduced for performance)
 
       // Enable deadlock detection to prune dead-end states
       if (heuristics.isDeadlocked(successorNode->state))
@@ -234,11 +241,12 @@ bool SolverAStar::solve(const InitialDynamicState &init, Array<char> &outMoves, 
 
 bool SolverAStar::isGoal(const State &state) const
 {
-  // Check if all boxes are on target positions
+  // Check if all boxes are on target positions AND all boxes are unlabeled (unlocked)
   for (int i = 0; i < state.getBoxCount(); i++)
   {
     const BoxInfo &box = state.getBox(i);
-    if (!board.is_target_idx(box.pos))
+    // Box must be on a target and must be unlabeled (id == 0)
+    if (!board.is_target_idx(box.pos) || box.id != 0)
     {
       return false;
     }
@@ -327,6 +335,18 @@ void SolverAStar::generateSuccessorsWithMoves(const AStarNode *parentNode, Array
     
     // Get the push direction
     char pushDirection = successors[i].getActionFromParent();
+    
+    // Handle key pickup action separately
+    if (pushDirection == 'K')
+    {
+      // Key pickup action - player just moves to key position
+      // No box push involved
+      successorNode->g = computeMoveCost(currentState, successors[i]);
+      successorNode->h = heuristics.heuristic(successors[i]);
+      successorNodes.push_back(successorNode);
+      currentStats.nodesGenerated++;
+      continue;
+    }
     
     // Find which direction index this corresponds to
     int dirIndex = -1;

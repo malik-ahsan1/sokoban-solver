@@ -19,6 +19,7 @@ State::State(int playerPos, int keyHeld, int energyUsed, int stepModL)
 // Copy constructor
 State::State(const State &other)
     : player_pos(other.player_pos), boxes(other.boxes), key_held(other.key_held),
+      keys_on_board(other.keys_on_board), key_ids(other.key_ids),
       energy_used(other.energy_used), step_mod_L(other.step_mod_L),
       parent(other.parent), action_from_parent(other.action_from_parent),
       zobrist_hash(other.zobrist_hash)
@@ -33,6 +34,8 @@ State &State::operator=(const State &other)
     player_pos = other.player_pos;
     boxes = other.boxes;
     key_held = other.key_held;
+    keys_on_board = other.keys_on_board;
+    key_ids = other.key_ids;
     energy_used = other.energy_used;
     step_mod_L = other.step_mod_L;
     parent = other.parent;
@@ -76,7 +79,8 @@ bool State::equals(const State &other) const
   if (player_pos != other.player_pos ||
       key_held != other.key_held ||
       step_mod_L != other.step_mod_L ||
-      boxes.getSize() != other.boxes.getSize())
+      boxes.getSize() != other.boxes.getSize() ||
+      keys_on_board.getSize() != other.keys_on_board.getSize())
   {
     return false;
   }
@@ -85,6 +89,16 @@ bool State::equals(const State &other) const
   for (int i = 0; i < boxes.getSize(); i++)
   {
     if (!(boxes[i] == other.boxes[i]))
+    {
+      return false;
+    }
+  }
+
+  // Check all keys on board
+  for (int i = 0; i < keys_on_board.getSize(); i++)
+  {
+    if (keys_on_board[i] != other.keys_on_board[i] ||
+        key_ids[i] != other.key_ids[i])
     {
       return false;
     }
@@ -136,6 +150,17 @@ void State::recompute_hash(const Zobrist &Z)
     zobrist_hash ^= Z.key_hash(key_held + 1); // Shift by 1 to make -1 -> 0, 0 -> 1, etc.
   }
 
+  // Hash keys on board
+  for (int i = 0; i < keys_on_board.getSize(); i++)
+  {
+    int key_pos = keys_on_board[i];
+    char key_id = key_ids[i];
+    if (key_pos >= 0 && key_pos < Z.getBoardSize() && key_id >= 'a' && key_id <= 'z')
+    {
+      zobrist_hash ^= Z.key_on_board_hash(key_id, key_pos);
+    }
+  }
+
   // Hash step modulo L
   if (step_mod_L >= 0 && step_mod_L < Z.getTimeModuloL())
   {
@@ -168,6 +193,40 @@ int State::findBoxAt(int pos) const
   for (int i = 0; i < boxes.getSize(); i++)
   {
     if (boxes[i].pos == pos)
+    {
+      return i;
+    }
+  }
+  return -1; // Not found
+}
+
+// Key management methods
+void State::addKey(int pos, char id)
+{
+  keys_on_board.push_back(pos);
+  key_ids.push_back(id);
+}
+
+void State::removeKey(int index)
+{
+  if (index >= 0 && index < keys_on_board.getSize())
+  {
+    // Shift all keys after index one position left
+    for (int i = index; i < keys_on_board.getSize() - 1; i++)
+    {
+      keys_on_board[i] = keys_on_board[i + 1];
+      key_ids[i] = key_ids[i + 1];
+    }
+    keys_on_board.pop_back();
+    key_ids.pop_back();
+  }
+}
+
+int State::findKeyAt(int pos) const
+{
+  for (int i = 0; i < keys_on_board.getSize(); i++)
+  {
+    if (keys_on_board[i] == pos)
     {
       return i;
     }

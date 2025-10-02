@@ -11,6 +11,7 @@ private:
   uint64_t *box_unlabeled_table; // Hash values for unlabeled box positions
   uint64_t *box_letter_table;    // Hash values for labeled box positions [26][boardSize]
   uint64_t *key_held_table;      // Hash values for held keys
+  uint64_t *key_on_board_table;  // Hash values for keys on board [26][boardSize]
   uint64_t *step_mod_table;      // Hash values for step modulo L
 
   // Dimensions
@@ -43,6 +44,7 @@ public:
   uint64_t box_hash_unlabeled(int pos) const;
   uint64_t box_hash_letter(char id, int pos) const;
   uint64_t key_hash(int keyIndex) const;
+  uint64_t key_on_board_hash(char id, int pos) const;  // Hash for keys on board
   uint64_t time_hash(int tmod) const;
 
   // Utility methods
