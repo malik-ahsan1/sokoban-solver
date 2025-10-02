@@ -324,6 +324,8 @@ bool SokobanHeuristics::isWallDeadlocked(const State &s) const
     return false;
 
   // Stage 2: Wall deadlock detection
+  // Only detect wall deadlock if box is in a corner (handled by corner deadlock)
+  // or if box is provably unreachable from all goals
   for (int box_idx = 0; box_idx < s.getBoxCount(); box_idx++)
   {
     const BoxInfo &box = s.getBox(box_idx);
@@ -333,10 +335,22 @@ bool SokobanHeuristics::isWallDeadlocked(const State &s) const
     if (isGoalPosition[box_pos])
       continue;
 
-    // Check if box is against a wall with no goals along that wall
-    if (isBoxAgainstWallWithoutGoals(box_pos))
+    // Check if box has infinite distance to all goals
+    // This means it's unreachable from any goal
+    bool unreachable_from_all_goals = true;
+    for (int goal_idx = 0; goal_idx < precomputed.getNumGoals(); goal_idx++)
     {
-      return true;
+      int distance = precomputed.getDistance(goal_idx, box_pos);
+      if (distance != INT_MAX)
+      {
+        unreachable_from_all_goals = false;
+        break;
+      }
+    }
+
+    if (unreachable_from_all_goals)
+    {
+      return true; // Box cannot reach any goal
     }
   }
 
@@ -699,7 +713,11 @@ bool SokobanHeuristics::isMultiboxDeadlocked(const State &s) const
   if (!board)
     return false;
 
-  return is_multibox_deadlock(s, *board);
+  // Disable multibox deadlock for now as it has false positives
+  // TODO: Improve multibox deadlock detection accuracy
+  return false;
+  
+  // return is_multibox_deadlock(s, *board);
 }
 
 bool SokobanHeuristics::is_multibox_deadlock(const State &state, const Board &board) const
